@@ -1,0 +1,109 @@
+name: CI Checks
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Code Quality & Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Sync Python workspace
+        run: uv sync --all-packages --all-groups
+
+      - name: Lint Python packages
+        run: |
+          uv run black --check shared-core backend-core agent-service
+          uv run flake8 \
+            shared-core/src backend-core/src agent-service/src \
+            shared-core/tests backend-core/tests agent-service/tests \
+            --max-line-length=88
+
+      - name: Lint Node packages
+        run: |
+          for dir in frontend-dashboard chat-widget; do
+            (cd "$dir" && npm install && npm run lint --if-present)
+          done
+
+  docker-build:
+    name: Docker Build & Compose Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Validate Compose file
+        run: docker compose config -q
+
+      - name: Build all Compose services
+        run: docker compose build
+        env:
+          LLM_API_KEY: dummy_ci_key_for_build
+
+  compose-test:
+    name: Integration Tests (Docker Compose)
+    needs: [docker-build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Boot Compose stack
+        run: docker compose up -d --build
+        env:
+          LLM_API_KEY: mock_ci_key
+
+      - name: Wait for Postgres and Qdrant
+        run: |
+          until docker compose exec -T db pg_isready -U platform_admin -d core_platform; do
+            sleep 2
+          done
+          until curl -sf http://localhost:6333/readyz || curl -sf http://localhost:6333/healthz; do
+            sleep 2
+          done
+
+      - name: Wait for service health endpoints
+        run: |
+          for url in http://localhost:8080/health http://localhost:8000/health; do
+            for i in $(seq 1 30); do
+              if curl -sf "$url" >/dev/null; then
+                echo "ready: $url"
+                break
+              fi
+              sleep 2
+              if [ "$i" -eq 30 ]; then
+                echo "timeout waiting for $url"
+                exit 1
+              fi
+            done
+          done
+
+      - name: Run service tests inside containers
+        run: |
+          docker compose exec -T agent-service uv run --package agent-service pytest
+          docker compose exec -T backend-core uv run --package backend-core pytest
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

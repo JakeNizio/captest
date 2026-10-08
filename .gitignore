@@ -1,0 +1,33 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python / uv
+.venv/
+**/.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+uv.lock.bak
+
+# Node
+node_modules/
+frontend-dashboard/dist/
+chat-widget/dist/
+
+# Local storage / OS
+backend-core/storage/
+**/storage/
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp

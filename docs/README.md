@@ -15,6 +15,7 @@ Load a small set of docs for the task. Do not dump the entire library unless aud
 | Task | Load |
 | --- | --- |
 | Scaffold Phase 1 monorepo / Compose | [02](02-phased-delivery-strategy.md), [05](05-phase1-monorepo-and-compose.md), [09](09-interfaces-and-shared-core.md), [12](12-open-decisions.md) |
+| Day-to-day run / change / verify / push | [14](14-developer-workflow.md), [03](03-local-development.md) |
 | Local DX / Docker questions | [03](03-local-development.md), [04](04-docker-and-compose.md), [05](05-phase1-monorepo-and-compose.md) |
 | RAG ingestion or chat runtime | [07](07-rag-and-data-flow.md), [09](09-interfaces-and-shared-core.md), [08](08-multi-tenancy-and-isolation.md) |
 | Multi-tenancy / isolation | [08](08-multi-tenancy-and-isolation.md), [02](02-phased-delivery-strategy.md), [09](09-interfaces-and-shared-core.md) |
@@ -48,6 +49,7 @@ Load a small set of docs for the task. Do not dump the entire library unless aud
 | [11-scaling-backend.md](11-scaling-backend.md) | Stateless control plane, HPA, async workers |
 | [12-open-decisions.md](12-open-decisions.md) | Unresolved choices, gaps, provisional scaffolding notes |
 | [13-github-actions-pr-checks.md](13-github-actions-pr-checks.md) | PR lint/build/test via Actions + local dry-run + minute limits |
+| [14-developer-workflow.md](14-developer-workflow.md) | Run stack, make changes, verify, commit/push/PR |
 
 ## Settled vs open (summary)
 
