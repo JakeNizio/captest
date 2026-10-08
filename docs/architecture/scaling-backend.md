@@ -4,6 +4,8 @@
 **Audience:** Humans and LLMs implementing API handlers, health checks, or workers.  
 **Status:** Phase 2 target with Phase 1 coding rules. Queue product and worker framework are open.
 
+Platform-wide layer map: [scaling-platform.md](scaling-platform.md). Contracts: [interfaces-and-shared-core.md](interfaces-and-shared-core.md).
+
 ## Three rules for horizontal scale
 
 ### Rule 1: Zero local state
@@ -15,7 +17,7 @@
 ### Rule 2: Decouple HTTP from heavy ingestion
 
 - MUST NOT run long PDF chunk/embed work inline in the request path under load.
-- Phase 1: background tasks (framework-specific: Celery, BullMQ, FastAPI `BackgroundTasks`, etc.).
+- Phase 1: in-process background tasks (e.g. FastAPI `BackgroundTasks`, or Celery if introduced later).
 - Phase 2: enqueue to SQS/RabbitMQ/Redis; API returns **202 Accepted**; workers process jobs.
 - Workers MAY scale independently (e.g. KEDA on queue depth).
 
@@ -23,7 +25,7 @@
 
 Many API replicas can overwhelm Postgres. Put PgBouncer or AWS RDS Proxy between pods and the DB.
 
-## Phase 1 vs Phase 2 topology
+## Phase 2 topology
 
 ```text
 [Requests]
@@ -44,6 +46,7 @@ Many API replicas can overwhelm Postgres. Put PgBouncer or AWS RDS Proxy between
 | Scaling | Manual | HPA on CPU/RAM/RPS |
 | Session state | Single instance OK; prefer externalizable | Redis / ElastiCache |
 | Jobs | Sync or local background | SQS (or similar) + worker pool |
+| Health | `GET /health` (current) | Keep `/health`; add `/healthz` / `/readyz` if probes need them |
 
 ## Illustrative HPA (Phase 2)
 
@@ -77,8 +80,6 @@ spec:
 
 ## Illustrative async ingest endpoint
 
-Language/framework illustrative (FastAPI-shaped):
-
 ```python
 @router.post("/api/v1/documents/ingest")
 async def ingest_document(
@@ -101,9 +102,6 @@ async def ingest_document(
 
 ## Phase 1 checklist (do now)
 
-1. Keep `backend-core` logically stateless (Postgres/Redis for shared state).
-2. Implement `GET /healthz` and `GET /readyz` for future load balancers/K8s probes.
+1. Keep `backend-core` logically stateless (Postgres today; Redis only if sessions need it later).
+2. Keep `GET /health` accurate (DB + dependencies). Richer `/healthz` / `/readyz` probes are Phase 2 / K8s — see [open-decisions.md](open-decisions.md).
 3. Structure ingestion so a queue/worker split can replace in-process tasks without rewriting upload/auth.
-
-Platform-wide Phase 2 map: [10-scaling-platform.md](10-scaling-platform.md).  
-Contracts: [09-interfaces-and-shared-core.md](09-interfaces-and-shared-core.md).

@@ -4,6 +4,8 @@
 **Audience:** Humans and LLMs implementing document upload, embedding, or chat retrieval.  
 **Status:** Settled flow and security invariants. Embedding provider and vector product details are open.
 
+Tenant filter / interface rules: [interfaces-and-shared-core.md](interfaces-and-shared-core.md). Isolation model: [multi-tenancy-and-isolation.md](multi-tenancy-and-isolation.md).
+
 ## Split responsibility
 
 | Phase | Owner | Job |
@@ -11,7 +13,7 @@
 | Ingestion | `backend-core` (control plane) | Upload → store → chunk → embed → upsert with `tenant_id` |
 | Runtime query | `agent-service` (LangGraph) | Intent → retrieve (tenant-filtered) → memory → synthesize → stream |
 
-MUST NOT let the browser talk directly to vector DB credentials. MUST NOT run similarity search without a tenant filter.
+MUST NOT let the browser talk directly to vector DB credentials. MUST NOT run similarity search without a tenant filter (enforced via `VectorStoreService`).
 
 ## Ingestion pipeline
 
@@ -23,12 +25,10 @@ MUST NOT let the browser talk directly to vector DB credentials. MUST NOT run si
                               |-- VectorStoreService.upsert_embeddings(..., tenant_id)
 ```
 
-### Steps
-
 1. **Auth + tenant** — Resolve `tenant_id` (Phase 1: env `TENANT_ID`; Phase 2: JWT/session).
 2. **Store raw file** — Via `StorageService` under a tenant-prefixed path.
 3. **Chunk & embed** — Control plane owns chunking/embedding for uploads.
-4. **Upsert** — Every vector payload MUST include `tenant_id` (and useful metadata such as `source_file`, `text_content`).
+4. **Upsert** — Every vector payload MUST include `tenant_id` (plus useful metadata such as `source_file`, `text_content`).
 
 Example payload shape:
 
@@ -43,7 +43,7 @@ Example payload shape:
 }
 ```
 
-Heavy ingestion SHOULD eventually be async (202 + worker). Phase 1 may use in-process background tasks; Phase 2 uses a queue — see [11-scaling-backend.md](11-scaling-backend.md).
+Heavy ingestion SHOULD eventually be async (202 + worker). Phase 1 may use in-process background tasks; Phase 2 uses a queue — see [scaling-backend.md](scaling-backend.md).
 
 ## Runtime query loop
 
@@ -59,22 +59,10 @@ Heavy ingestion SHOULD eventually be async (202 + worker). Phase 1 may use in-pr
        5. Stream tokens (SSE or WebSocket) back to widget
 ```
 
-### Step details
-
 1. **Ingress (Phase 2)** — Validate widget API key, map to tenant, route to that tenant's pod.
-2. **LangGraph** — Pass `configurable.tenant_id` and `thread_id` on every run.
-3. **Retrieval guardrail** — Agent injects its tenant into the vector filter (`tenant_id == <self>`). Cross-tenant nearest neighbors MUST be dropped by metadata filter before results return.
+2. **LangGraph** — Pass `configurable.tenant_id` and `thread_id` on every run (see [interfaces](interfaces-and-shared-core.md)).
+3. **Retrieval guardrail** — Agent injects its tenant into the vector filter. Cross-tenant nearest neighbors MUST be dropped by metadata filter before results return.
 4. **Memory** — Checkpointer scoped to the agent/session (SQLite vs Redis open).
 5. **Stream** — Tokens leave via SSE or WebSocket to the widget.
 
-Phase 1 local mock: single `agent-service` with static `TENANT_ID=default_tenant`; no per-tenant pods.
-
-## Security invariants
-
-- MUST attach `tenant_id` on every upsert.
-- MUST filter by `tenant_id` on every similarity search.
-- Agent pods SHOULD only know their own tenant identity in Phase 2 (no master cross-tenant credentials in the agent).
-- Shared vector cluster is allowed; isolation is logical via metadata (and later Postgres RLS for relational data).
-
-Interfaces: [09-interfaces-and-shared-core.md](09-interfaces-and-shared-core.md).  
-Tenancy model: [08-multi-tenancy-and-isolation.md](08-multi-tenancy-and-isolation.md).
+Phase 1 local mock: single `agent-service` with static `TENANT_ID=default_tenant`; no per-tenant pods. Agent pods SHOULD only know their own tenant identity in Phase 2.
