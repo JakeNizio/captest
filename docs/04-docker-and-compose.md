@@ -92,6 +92,10 @@ ports:
 
 Pass `DATABASE_URL`, `VECTOR_DB_URL`, `STORAGE_PROVIDER`, `TENANT_ID`, `LLM_API_KEY`, etc. Prefer Compose env (and later secrets) over hardcoding.
 
+### Log attach filters
+
+Each service can set `attach: ${COMPOSE_ATTACH_<SERVICE>:-true}`. When `false`, Compose still starts the container but does not stream its logs during `docker compose up`. Defaults stay all-on; developers override in local `.env`. Day-to-day usage: [14-developer-workflow.md](14-developer-workflow.md#filter-which-service-logs-you-see).
+
 ## Why not raw `docker run`
 
 Without Compose, each service needs long manual `docker run` flags, correct network linking, and ordered startup. Compose replaces that with checked-in YAML shared by the whole team.

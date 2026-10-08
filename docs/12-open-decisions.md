@@ -138,4 +138,5 @@ Still unspecified: token claims shape, key rotation, scopes, secret storage, wid
 
 | Date | Decision | Chosen option | Notes |
 | --- | --- | --- | --- |
+| 2026-10-07 | Phase 1 scaffolding defaults | FastAPI + LangGraph + Vite/React + Qdrant + GHA | Confirmed for scaffold; Python packaging via uv workspace |
 | | | | |

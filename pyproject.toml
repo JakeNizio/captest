@@ -1,0 +1,30 @@
+[project]
+name = "ai-agent-platform"
+version = "0.1.0"
+description = "Phase 1 monorepo workspace for the AI support-agent platform"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv.workspace]
+members = ["shared-core", "backend-core", "agent-service"]
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "black>=24.0.0",
+    "flake8>=7.0.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.27.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["backend-core/tests", "agent-service/tests", "shared-core/tests"]
+pythonpath = ["backend-core/src", "agent-service/src", "shared-core/src"]
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]

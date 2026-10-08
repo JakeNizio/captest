@@ -1,0 +1,103 @@
+services:
+  db:
+    image: ankane/pgvector:v0.5.1
+    # COMPOSE_ATTACH_* filters which services stream logs on `docker compose up`.
+    # Services still start; only the attached terminal output is hidden.
+    attach: ${COMPOSE_ATTACH_DB:-true}
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: platform_admin
+      POSTGRES_PASSWORD: local_secure_password
+      POSTGRES_DB: core_platform
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U platform_admin -d core_platform"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  vector-db:
+    image: qdrant/qdrant:v1.13.2
+    attach: ${COMPOSE_ATTACH_VECTOR_DB:-true}
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  backend-core:
+    build:
+      context: .
+      dockerfile: backend-core/Dockerfile
+      target: development
+    attach: ${COMPOSE_ATTACH_BACKEND_CORE:-true}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend-core:/app/backend-core
+      - ./shared-core:/app/shared-core
+      - backend_storage:/app/storage
+    environment:
+      DATABASE_URL: postgresql://platform_admin:local_secure_password@db:5432/core_platform
+      VECTOR_DB_URL: http://vector-db:6333
+      STORAGE_PROVIDER: local
+      LOCAL_STORAGE_PATH: /app/storage
+      TENANT_ID: default_tenant
+    depends_on:
+      db:
+        condition: service_healthy
+      vector-db:
+        condition: service_started
+
+  agent-service:
+    build:
+      context: .
+      dockerfile: agent-service/Dockerfile
+      target: development
+    attach: ${COMPOSE_ATTACH_AGENT_SERVICE:-true}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./agent-service:/app/agent-service
+      - ./shared-core:/app/shared-core
+    environment:
+      VECTOR_DB_URL: http://vector-db:6333
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      TENANT_ID: default_tenant
+    depends_on:
+      vector-db:
+        condition: service_started
+
+  dashboard-ui:
+    build:
+      context: ./frontend-dashboard
+      dockerfile: Dockerfile
+      target: development
+    attach: ${COMPOSE_ATTACH_DASHBOARD_UI:-true}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend-dashboard:/app
+      - /app/node_modules
+    environment:
+      VITE_BACKEND_URL: http://localhost:8080
+
+  chat-widget:
+    build:
+      context: ./chat-widget
+      dockerfile: Dockerfile
+      target: development
+    attach: ${COMPOSE_ATTACH_CHAT_WIDGET:-true}
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./chat-widget:/app
+      - /app/node_modules
+    environment:
+      VITE_AGENT_URL: http://localhost:8000
+
+volumes:
+  pg_data:
+  qdrant_data:
+  backend_storage:

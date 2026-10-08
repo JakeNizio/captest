@@ -1,0 +1,14 @@
+.git
+.github
+.venv
+**/__pycache__
+**/.pytest_cache
+**/node_modules
+**/dist
+docs
+inititalArchitectureResearch.txt
+.env
+.env.*
+!.env.example
+*.md
+!README.md
