@@ -4,6 +4,8 @@
 **Audience:** Humans and LLMs implementing auth middleware, schemas, or agent routing.  
 **Status:** Settled model. Auth token format and gateway product are open.
 
+Normative storage/vector/LangGraph contracts: [interfaces-and-shared-core.md](interfaces-and-shared-core.md). Strategy rules: [phased-delivery-strategy.md](phased-delivery-strategy.md).
+
 ## Isolation model
 
 | Layer | Model | Mechanism |
@@ -37,11 +39,9 @@ Siloed agent compute removes noisy-neighbor CPU/memory issues and keeps agent pr
 - **Phase 2:** Same middleware API; implementation switches to JWT/header extraction.
 - Downstream business code MUST read tenant from request context, never hardcode except via that context/env bridge.
 
-## Database multi-tenancy
+## Database multi-tenancy (RLS)
 
-- Every tenant-owned table MUST have `tenant_id`.
-- Application queries MUST filter by current tenant.
-- Phase 2: enable Postgres RLS, e.g.:
+Every tenant-owned table MUST have `tenant_id`; application queries MUST filter by current tenant (see [interfaces](interfaces-and-shared-core.md)). Phase 2 additionally enables Postgres RLS, e.g.:
 
 ```sql
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
@@ -60,18 +60,12 @@ COMMIT;
 
 Use a shared pool (PgBouncer / RDS Proxy in Phase 2), not per-tenant connection pools.
 
-## Vector multi-tenancy
-
-- Upsert: force `payload.tenant_id`.
-- Search: force filter `tenant_id == <current>`.
-- Prefer enforcing this inside `VectorStoreService` so tools cannot forget the filter — see [09-interfaces-and-shared-core.md](09-interfaces-and-shared-core.md).
-
 ## Local multi-tenant simulation
 
 Simulating full EKS multi-pod tenancy on a laptop is out of scope for Phase 1 Compose.
 
 - Phase 1: one `agent-service`, static `TENANT_ID=default_tenant`.
-- Optional later local mock: gateway (Nginx/Traefik) + header-based tenant switching against one agent process. **Not** in the canonical Phase 1 Compose file.
+- Optional later local mock: gateway (Nginx/Traefik) + header-based tenant switching against one agent process. **Not** in the canonical Phase 1 Compose file — see [phase1-layout.md](../developer/phase1-layout.md).
 
 ## Widget → agent routing (Phase 2)
 
@@ -80,4 +74,4 @@ Simulating full EKS multi-pod tenancy on a laptop is out of scope for Phase 1 Co
 3. Traffic routes to that tenant's LangGraph pod.
 4. Pod uses its tenant identity for retrieval filters.
 
-API key scopes, rotation, and ingress product (Traefik / Nginx / Kong) are open — [12-open-decisions.md](12-open-decisions.md).
+API key scopes, rotation, and ingress product (Traefik / Nginx / Kong) are open — [open-decisions.md](open-decisions.md).

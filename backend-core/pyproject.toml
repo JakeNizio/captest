@@ -9,10 +9,13 @@ dependencies = [
     "uvicorn[standard]>=0.30.0",
     "psycopg[binary]>=3.2.0",
     "python-multipart>=0.0.9",
+    "sqlalchemy>=2.0.36",
+    "alembic>=1.14.0",
 ]
 
 [project.scripts]
 backend-core = "backend_core.main:run"
+backend-core-migrate = "backend_core.migrate:main"
 
 [build-system]
 requires = ["uv_build>=0.12.13,<0.13.0"]

@@ -13,6 +13,7 @@ def test_health_includes_tenant_context(tmp_path):
         local_storage_path=str(tmp_path),
         host="0.0.0.0",
         port=8080,
+        run_migrations_on_startup=False,
     )
     client = TestClient(create_app(settings))
     response = client.get("/health")
@@ -20,3 +21,4 @@ def test_health_includes_tenant_context(tmp_path):
     body = response.json()
     assert body["tenant_id"] == "default_tenant"
     assert body["service"] == "backend-core"
+    assert body["dependencies"]["postgres"] is False

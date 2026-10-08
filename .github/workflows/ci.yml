@@ -95,6 +95,13 @@ jobs:
             done
           done
 
+      - name: Verify Postgres schema migrated
+        run: |
+          docker compose exec -T db psql -U platform_admin -d core_platform -c \
+            "SELECT id FROM tenants WHERE id = 'default_tenant';" | grep default_tenant
+          docker compose exec -T db psql -U platform_admin -d core_platform -c "\dt" \
+            | grep -E 'tenants|agents|documents'
+
       - name: Run service tests inside containers
         run: |
           docker compose exec -T agent-service uv run --package agent-service pytest
