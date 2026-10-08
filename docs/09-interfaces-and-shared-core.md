@@ -2,9 +2,7 @@
 
 **Purpose:** Normative contracts that keep Phase 1 → Phase 2 swaps infrastructure-only.  
 **Audience:** Humans and LLMs implementing `shared-core`, middleware, storage, vector, or LangGraph tools.  
-**Status:** Settled contracts for the Python stack (`shared-core`, `backend-core`, `agent-service`). Signatures below match the implementation shape.
-
-Strategy-level MUST summary: [phased-delivery-strategy.md](phased-delivery-strategy.md). Isolation model / RLS: [multi-tenancy-and-isolation.md](multi-tenancy-and-isolation.md).
+**Status:** Settled contracts. Python ABCs below are **shape reference**, not a language decision.
 
 ## Why `shared-core`
 
@@ -12,15 +10,11 @@ Strategy-level MUST summary: [phased-delivery-strategy.md](phased-delivery-strat
 
 ```text
 shared-core/
-└── src/shared_core/
-    ├── interfaces/       # StorageService, VectorStoreService ABCs
-    │   ├── storage.py
-    │   └── vector_store.py
-    ├── schemas/          # TenantContext, shared models
-    │   └── tenant.py
-    └── providers/        # Phase 1 implementations
-        ├── local_storage.py
-        └── qdrant_vector.py
+├── interfaces/
+│   ├── storage.*
+│   └── vector_store.*
+└── schemas/
+    └── tenant.*
 ```
 
 ## Tenant middleware behavior
@@ -35,6 +29,8 @@ Middleware MUST attach tenant to request context. Business handlers and tools MU
 ## A. `StorageService`
 
 MUST NOT call S3/local FS SDKs from feature code. Call this interface.
+
+Shape reference (Python ABC — illustrative):
 
 ```python
 from abc import ABC, abstractmethod
@@ -81,7 +77,7 @@ class VectorStoreService(ABC):
 | Phase 1 | Static `default_tenant` (from env/context) |
 | Phase 2 | Dynamic per request / per agent pod |
 
-Phase 1 implementation uses Qdrant (via `VECTOR_DB_URL`). Managed vector choice for Phase 2 is open — see [open-decisions.md](open-decisions.md).
+Implementation may target Qdrant, pgvector, or another store — see [12-open-decisions.md](12-open-decisions.md).
 
 ## C. LangGraph config signature
 
@@ -119,4 +115,4 @@ MUST NOT hardcode tenant inside tools except by reading `configurable`.
 | Vector tools | Always pass tenant into interface | Same code; dynamic tenant values |
 | LangGraph tools | Read `configurable.tenant_id` | No tool signature change |
 
-Related: [phased-delivery-strategy.md](phased-delivery-strategy.md), [rag-and-data-flow.md](rag-and-data-flow.md), [multi-tenancy-and-isolation.md](multi-tenancy-and-isolation.md).
+Related: [02-phased-delivery-strategy.md](02-phased-delivery-strategy.md), [07-rag-and-data-flow.md](07-rag-and-data-flow.md), [08-multi-tenancy-and-isolation.md](08-multi-tenancy-and-isolation.md).

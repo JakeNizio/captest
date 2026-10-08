@@ -2,7 +2,7 @@
 
 **Purpose:** Deliver Phase 1 without rewriting for Phase 2 multi-tenancy and AWS.  
 **Audience:** Humans and LLMs scaffolding code, schemas, and env wiring.  
-**Status:** Settled strategy. Phase 1 stack is implemented; Phase 2 infra choices remain in [open-decisions.md](open-decisions.md).
+**Status:** Settled strategy. Implementation languages remain open.
 
 ## Strategy name
 
@@ -22,11 +22,28 @@ Build a single-tenant app now. Design schemas, APIs, and interfaces as if multi-
 
 ## Three future-proof rules (MUST)
 
-Normative API shapes and enforcement details: [interfaces-and-shared-core.md](interfaces-and-shared-core.md).
+### Rule 1: `tenant_id` on all data
 
-1. **`tenant_id` on all data** — Postgres tables and vector metadata include `tenant_id` in Phase 1. Env `TENANT_ID=default_tenant` supplies the value locally. Queries MUST filter by current tenant.
-2. **Pass `tenant_id` into LangGraph** — Every `invoke` / `stream` MUST put `tenant_id` and `thread_id` in `configurable`. Retrieval tools read tenant from `RunnableConfig` and apply it to vector search.
-3. **Decouple storage behind an interface** — MUST NOT call S3 or local FS SDKs from business logic. Use `StorageService`; toggle `STORAGE_PROVIDER` (`local` → `s3`) in Phase 2.
+- Add `tenant_id` to Postgres tables and vector metadata **in Phase 1**.
+- Phase 1: hardcode via env `TENANT_ID=default_tenant`.
+- Queries MUST already filter: `WHERE tenant_id = <current_tenant>`.
+
+### Rule 2: Pass `tenant_id` into LangGraph
+
+- Every `invoke` / `stream` MUST pass:
+
+```python
+config = {"configurable": {"tenant_id": <current_tenant_id>, "thread_id": <session_id>}}
+```
+
+- Retrieval tools MUST read `tenant_id` from `RunnableConfig` and apply it to vector search.
+
+### Rule 3: Decouple storage behind an interface
+
+- MUST NOT call S3 (or local FS) SDKs directly from business logic.
+- Use `StorageService` with a Phase 1 local provider and a Phase 2 S3 provider toggled by `STORAGE_PROVIDER`.
+
+Full contracts: [09-interfaces-and-shared-core.md](09-interfaces-and-shared-core.md).
 
 ## Phase 1 → Phase 2 transition checklist
 
@@ -36,8 +53,10 @@ When Phase 2 is approved:
 2. **Storage swap** — Set `STORAGE_PROVIDER=s3` + AWS credentials. No business-logic rewrite if Rule 3 was followed.
 3. **Agent siloing** — Deploy `agent-service` image via Helm/CRD; inject per-tenant `TENANT_ID` (or equivalent) at pod launch.
 4. **Data plane** — Point Postgres/vector URLs at managed services; enable RLS; keep `tenant_id` filters.
-5. **Control plane scale** — Stateless API behind ALB + HPA; async workers for ingestion — see [scaling-platform.md](scaling-platform.md) and [scaling-backend.md](scaling-backend.md).
+5. **Control plane scale** — Stateless API behind ALB + HPA; async workers for ingestion — see [10-scaling-platform.md](10-scaling-platform.md) and [11-scaling-backend.md](11-scaling-backend.md).
 
-## Phase 1 Compose
+## What Phase 1 Compose includes
 
-Canonical services, env vars, and the intentional omit list: [phase1-layout.md](../developer/phase1-layout.md).
+Canonical services and env vars: [05-phase1-monorepo-and-compose.md](05-phase1-monorepo-and-compose.md).
+
+Phase 1 intentionally omits: LocalStack (use local FS), multi-tenant gateway mock, Redis (unless chosen for sessions early), dedicated worker service (may use in-process background tasks initially — see [12-open-decisions.md](12-open-decisions.md)).

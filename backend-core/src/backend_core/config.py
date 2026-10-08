@@ -2,13 +2,6 @@ import os
 from dataclasses import dataclass
 
 
-def _env_bool(name: str, default: bool) -> bool:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    return raw.strip().lower() in {"1", "true", "yes", "on"}
-
-
 @dataclass(frozen=True)
 class Settings:
     tenant_id: str
@@ -18,7 +11,6 @@ class Settings:
     local_storage_path: str
     host: str
     port: int
-    run_migrations_on_startup: bool = True
 
 
 def get_settings() -> Settings:
@@ -36,5 +28,4 @@ def get_settings() -> Settings:
         local_storage_path=os.getenv("LOCAL_STORAGE_PATH", "/app/storage"),
         host=os.getenv("HOST", "0.0.0.0"),
         port=int(os.getenv("PORT", "8080")),
-        run_migrations_on_startup=_env_bool("RUN_MIGRATIONS_ON_STARTUP", True),
     )

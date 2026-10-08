@@ -1,30 +1,23 @@
 from contextlib import asynccontextmanager
 from io import BytesIO
 
+import psycopg
 from fastapi import Depends, FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
 
 from shared_core.schemas.tenant import TenantContext
 
 from backend_core.config import Settings, get_settings
-from backend_core.db import database_ready, get_db, reset_engine
 from backend_core.deps import get_storage, get_tenant, get_vector_store
-from backend_core.migrate import run_migrations
 from backend_core.middleware import TenantMiddleware
-from backend_core.models import Document
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings: Settings = app.state.settings
-    reset_engine()
-    if settings.run_migrations_on_startup:
-        run_migrations(settings.database_url)
     storage = get_storage(settings)
     storage.root_path.mkdir(parents=True, exist_ok=True)
     yield
-    reset_engine()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -38,8 +31,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         tenant: TenantContext = Depends(get_tenant),
     ) -> dict:
         settings = app.state.settings
-        db_ok = database_ready(settings)
+        db_ok = False
         vector_ok = False
+
+        try:
+            with psycopg.connect(settings.database_url, connect_timeout=3) as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT 1")
+                    db_ok = cur.fetchone() is not None
+        except Exception:
+            db_ok = False
 
         try:
             vector_ok = await get_vector_store(settings).healthcheck()
@@ -61,37 +62,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return JSONResponse(content=body, status_code=code)
 
     @app.post("/api/v1/documents")
-    async def upload_document(
+    async def upload_document_stub(
         file: UploadFile = File(...),
         tenant: TenantContext = Depends(get_tenant),
-        db: Session = Depends(get_db),
     ) -> dict:
-        """Store raw file via StorageService and record metadata in Postgres."""
+        """Minimal ingestion stub: store raw file via StorageService only."""
         settings = app.state.settings
         storage = get_storage(settings)
         content = await file.read()
-        filename = file.filename or "unnamed.bin"
         uri = await storage.upload_file(
             BytesIO(content),
-            path=f"uploads/{filename}",
+            path=f"uploads/{file.filename or 'unnamed.bin'}",
             tenant_id=tenant.tenant_id,
         )
-        document = Document(
-            tenant_id=tenant.tenant_id,
-            filename=filename,
-            storage_uri=uri,
-            status="uploaded",
-        )
-        db.add(document)
-        db.commit()
-        db.refresh(document)
         return {
-            "id": str(document.id),
-            "tenant_id": document.tenant_id,
-            "filename": document.filename,
-            "uri": document.storage_uri,
-            "status": document.status,
-            "note": "Phase 1: chunk/embed/upsert not implemented yet",
+            "tenant_id": tenant.tenant_id,
+            "filename": file.filename,
+            "uri": uri,
+            "note": "Phase 1 stub: chunk/embed/upsert not implemented yet",
         }
 
     return app

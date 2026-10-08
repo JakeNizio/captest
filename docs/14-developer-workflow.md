@@ -2,9 +2,9 @@
 
 **Purpose:** End-to-end day-to-day loop — run the stack, make changes, verify, commit, and push to GitHub.  
 **Audience:** Developers starting Phase 1 work on this monorepo.  
-**Status:** **Canonical runbook** for this repo (Compose + uv workspace + GitHub Actions). Other docs link here for commands; do not duplicate bring-up elsewhere.
+**Status:** Matches the current scaffold (Compose + uv workspace + GitHub Actions).
 
-Related: principles in [local-development.md](local-development.md), ports/services in [phase1-layout.md](phase1-layout.md), CI detail in [github-actions-pr-checks.md](../ci/github-actions-pr-checks.md). Short day-1 bring-up: root [README.md](../../README.md).
+Related: principles in [03-local-development.md](03-local-development.md), ports/services in [05-phase1-monorepo-and-compose.md](05-phase1-monorepo-and-compose.md), CI detail in [13-github-actions-pr-checks.md](13-github-actions-pr-checks.md). Quick start also in the root [README.md](../README.md).
 
 ## Prerequisites
 
@@ -46,7 +46,7 @@ Leave the compose terminal running so it can keep streaming service logs. Open a
 
 ### Filter which service logs you see
 
-All services still start; these flags only control what streams in the `docker compose up` terminal. Defaults are **all on**. Set them in `.env` (see [`.env.example`](../../.env.example)):
+All services still start; these flags only control what streams in the `docker compose up` terminal. Defaults are **all on**. Set them in `.env` (see [`.env.example`](../.env.example)):
 
 | Variable | Service |
 | --- | --- |
@@ -130,13 +130,13 @@ Rebuild only when the pull changed something that lives **inside the image**, no
 
 ### Where to edit
 
-| Package | Role | Package guide |
-| --- | --- | --- |
-| `shared-core/` | Shared schemas, storage/vector interfaces and Phase 1 providers | [../../shared-core/README.md](../../shared-core/README.md) |
-| `backend-core/` | Control plane API | [../../backend-core/README.md](../../backend-core/README.md) |
-| `agent-service/` | LangGraph chat runtime | [../../agent-service/README.md](../../agent-service/README.md) |
-| `frontend-dashboard/` | Business dashboard UI | [../../frontend-dashboard/README.md](../../frontend-dashboard/README.md) |
-| `chat-widget/` | Embeddable widget | [../../chat-widget/README.md](../../chat-widget/README.md) |
+| Package | Role |
+| --- | --- |
+| `shared-core/` | Shared schemas, storage/vector interfaces and Phase 1 providers |
+| `backend-core/` | Control plane API |
+| `agent-service/` | LangGraph chat runtime |
+| `frontend-dashboard/` | Business dashboard UI |
+| `chat-widget/` | Embeddable widget |
 
 ### Branch before coding
 
@@ -147,19 +147,6 @@ git checkout -b feature/short-description
 ```
 
 Use a clear prefix (`feature/`, `fix/`, `docs/`) if the team agrees on one.
-
-### Database migrations (`backend-core`)
-
-Postgres schemas live in `backend-core` (SQLAlchemy models + Alembic). On startup, `backend-core` runs `alembic upgrade head` when `RUN_MIGRATIONS_ON_STARTUP=true` (Compose default).
-
-| Task | Command |
-| --- | --- |
-| Apply migrations (Compose) | Automatic on `backend-core` start, or `docker compose exec backend-core uv run --package backend-core backend-core-migrate` |
-| Apply migrations (host) | `cd backend-core && uv run backend-core-migrate` (Postgres must be reachable via `DATABASE_URL`) |
-| Autogenerate after model edits | `cd backend-core && uv run alembic revision --autogenerate -m "describe change"` then review the file under `alembic/versions/` |
-| Reset local DB volumes | `docker compose down -v` then `docker compose up` (re-runs migrations + seed) |
-
-Tables today: `tenants`, `agents`, `documents` (all tenant-scoped except `tenants` itself). Seed row: `default_tenant`. Details: [`backend-core/README.md`](../../backend-core/README.md).
 
 ### Add a Python dependency
 
@@ -198,7 +185,7 @@ Commit `package.json` (and `package-lock.json` once it exists).
 
 ## 3. Verify
 
-Run these before you commit. Prefer the same checks CI will run ([`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)).
+Run these before you commit. Prefer the same checks CI will run ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)).
 
 ### Smoke the running stack
 
@@ -251,7 +238,7 @@ docker compose exec -T agent-service uv run --package agent-service pytest
 docker compose exec -T backend-core uv run --package backend-core pytest
 ```
 
-Full local dry-run of the CI pattern: [github-actions-pr-checks.md](../ci/github-actions-pr-checks.md).
+Full local dry-run of the CI pattern: [13-github-actions-pr-checks.md](13-github-actions-pr-checks.md).
 
 ## 4. Commit and push to GitHub
 
