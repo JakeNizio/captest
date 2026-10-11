@@ -13,9 +13,15 @@ WORKDIR /app
 FROM base AS development
 
 COPY pyproject.toml uv.lock .python-version ./
+COPY shared-core/pyproject.toml ./shared-core/pyproject.toml
+COPY backend-core/pyproject.toml ./backend-core/pyproject.toml
+COPY agent-service/pyproject.toml ./agent-service/pyproject.toml
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --package backend-core --group dev --no-install-workspace
+
 COPY shared-core ./shared-core
 COPY backend-core ./backend-core
-COPY agent-service ./agent-service
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --package backend-core --group dev
@@ -27,9 +33,15 @@ CMD ["uv", "run", "--package", "backend-core", "uvicorn", "backend_core.main:app
 FROM base AS production
 
 COPY pyproject.toml uv.lock .python-version ./
+COPY shared-core/pyproject.toml ./shared-core/pyproject.toml
+COPY backend-core/pyproject.toml ./backend-core/pyproject.toml
+COPY agent-service/pyproject.toml ./agent-service/pyproject.toml
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --package backend-core --no-dev --no-editable --no-install-workspace
+
 COPY shared-core ./shared-core
 COPY backend-core ./backend-core
-COPY agent-service ./agent-service
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --package backend-core --no-dev --no-editable

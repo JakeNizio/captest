@@ -25,6 +25,11 @@ services:
       - "6333:6333"
     volumes:
       - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333'"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   backend-core:
     build:
@@ -48,7 +53,7 @@ services:
       db:
         condition: service_healthy
       vector-db:
-        condition: service_started
+        condition: service_healthy
 
   agent-service:
     build:
@@ -67,7 +72,7 @@ services:
       TENANT_ID: default_tenant
     depends_on:
       vector-db:
-        condition: service_started
+        condition: service_healthy
 
   dashboard-ui:
     build:
