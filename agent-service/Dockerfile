@@ -13,8 +13,14 @@ WORKDIR /app
 FROM base AS development
 
 COPY pyproject.toml uv.lock .python-version ./
+COPY shared-core/pyproject.toml ./shared-core/pyproject.toml
+COPY backend-core/pyproject.toml ./backend-core/pyproject.toml
+COPY agent-service/pyproject.toml ./agent-service/pyproject.toml
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --package agent-service --group dev --no-install-workspace
+
 COPY shared-core ./shared-core
-COPY backend-core ./backend-core
 COPY agent-service ./agent-service
 
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -27,8 +33,14 @@ CMD ["uv", "run", "--package", "agent-service", "uvicorn", "agent_service.main:a
 FROM base AS production
 
 COPY pyproject.toml uv.lock .python-version ./
+COPY shared-core/pyproject.toml ./shared-core/pyproject.toml
+COPY backend-core/pyproject.toml ./backend-core/pyproject.toml
+COPY agent-service/pyproject.toml ./agent-service/pyproject.toml
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --package agent-service --no-dev --no-editable --no-install-workspace
+
 COPY shared-core ./shared-core
-COPY backend-core ./backend-core
 COPY agent-service ./agent-service
 
 RUN --mount=type=cache,target=/root/.cache/uv \
